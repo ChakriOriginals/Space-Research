@@ -74,52 +74,37 @@ function LineChart({ data }) {
 
   return (
     <div>
-      {/* Controls Row */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginBottom:14, flexWrap:"wrap" }}>
-
-        {/* Year range — side by side compact */}
-        <div style={{
-          display:"flex", alignItems:"center", gap:6,
-          background:"var(--bg)",
-          borderRadius:10, padding:"4px 10px"
-        }}>
+        <div style={{ display:"flex", alignItems:"center", gap:6, background:"var(--bg)", border:"1px solid var(--border)", borderRadius:10, padding:"4px 10px" }}>
           <span style={{ fontSize:11, color:"var(--text3)", fontWeight:600, whiteSpace:"nowrap" }}>From</span>
           <select value={from} onChange={e=>setRangeFrom(Number(e.target.value))} style={selectStyle}>
             {allYears.filter(y=>y<=to).map(y=><option key={y} value={y}>{y}</option>)}
           </select>
-          <span style={{ fontSize:11, color:"var(--text3)", padding:"0 2px" }}></span>
+          <span style={{ fontSize:11, color:"var(--text3)", padding:"0 2px" }}>→</span>
           <span style={{ fontSize:11, color:"var(--text3)", fontWeight:600, whiteSpace:"nowrap" }}>To</span>
           <select value={to} onChange={e=>setRangeTo(Number(e.target.value))} style={selectStyle}>
             {allYears.filter(y=>y>=from).map(y=><option key={y} value={y}>{y}</option>)}
           </select>
         </div>
-
-        {/* Preset pills */}
         <div style={{ display:"flex", gap:4 }}>
           {PRESETS.map(p => {
             const pF=Math.max(p.from,minYear), pT=Math.min(p.to,maxYear);
             const active=from===pF&&to===pT;
             return (
               <button key={p.label} onClick={()=>{setRangeFrom(pF);setRangeTo(pT);}}
-                style={{
-                  padding:"5px 11px", fontSize:11, borderRadius:20, cursor:"pointer",
+                style={{ padding:"5px 11px", fontSize:11, borderRadius:20, cursor:"pointer",
                   border:`1px solid ${active?"var(--accent)":"var(--border)"}`,
-                  background: active?"var(--accent)":"transparent",
-                  color: active?"#fff":"var(--text2)",
-                  fontWeight: active?600:400,
-                  transition:"all 0.15s", whiteSpace:"nowrap"
-                }}>
+                  background:active?"var(--accent)":"transparent",
+                  color:active?"#fff":"var(--text2)",
+                  fontWeight:active?600:400,
+                  transition:"all 0.15s", whiteSpace:"nowrap" }}>
                 {p.label}
               </button>
             );
           })}
         </div>
-
-        
-      
       </div>
 
-      {/* SVG */}
       <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} style={{ width:"100%", height:H }}
         onMouseMove={handleMouseMove} onMouseLeave={()=>setTooltip(null)}>
         <defs>
@@ -155,7 +140,6 @@ function LineChart({ data }) {
         )}
       </svg>
 
-      {/* Legend */}
       <div style={{ display:"flex", gap:16, marginTop:8 }}>
         <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"var(--text2)" }}>
           <div style={{ width:18, height:2, background:"#0284c7", borderRadius:1 }}/> Total launches
@@ -226,6 +210,7 @@ export default function Dashboard() {
 
   return (
     <div>
+      {/* Stat Cards */}
       <div className="stats-grid">
         {[
           {label:"Total Launches",value:overview?.total_launches?.toLocaleString(),  sub:"all time",         color:"#0284c7"},
@@ -242,19 +227,12 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {/* Line Chart + Top Companies */}
       <div className="charts-grid" style={{marginBottom:20}}>
         <div className="card">
           <div className="card-title">Launches Per Year</div>
           <LineChart data={byYear}/>
         </div>
-        <div className="card">
-          <div className="card-title">Satellites by Orbit</div>
-          {byOrbit.length>0?<DonutChart data={byOrbit} colors={ORBIT_COLORS}/>:
-            <div style={{color:"var(--text3)",fontSize:13}}>Loading...</div>}
-        </div>
-      </div>
-
-      <div className="charts-grid-3">
         <div className="card">
           <div className="card-title">Top Launch Companies</div>
           <div className="bar-chart">
@@ -269,11 +247,9 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
-        <div className="card">
-          <div className="card-title">Mission Status</div>
-          {byStatus.length>0?<DonutChart data={byStatus} colors={STATUS_COLORS}/>:
-            <div style={{color:"var(--text3)",fontSize:13}}>Loading...</div>}
-        </div>
+      </div>
+
+      <div className="charts-grid-3">
         <div className="card">
           <div className="card-title">Top Satellite Purposes</div>
           <div className="bar-chart">
@@ -287,6 +263,18 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+        </div>
+        <div className="card">
+          <div className="card-title">Satellites by Orbit</div>
+          {byOrbit.length>0
+            ? <DonutChart data={byOrbit} colors={ORBIT_COLORS}/>
+            : <div style={{color:"var(--text3)",fontSize:13}}>Loading...</div>}
+        </div>
+        <div className="card">
+          <div className="card-title">Mission Status</div>
+          {byStatus.length>0
+            ? <DonutChart data={byStatus} colors={STATUS_COLORS}/>
+            : <div style={{color:"var(--text3)",fontSize:13}}>Loading...</div>}
         </div>
       </div>
     </div>
