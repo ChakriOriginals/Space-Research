@@ -1,121 +1,200 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   getOverview, getLaunchesByYear, getSatellitesByOrbit,
   getTopCompanies, getLaunchesByStatus, getSatsByPurpose
 } from "../api";
 
 function LineChart({ data }) {
-  const W = 600, H = 160, PAD_LEFT = 50, PAD_RIGHT = 20, PAD_TOP = 10, PAD_BOTTOM = 30;
-  if (!data.length) return null;
-  const maxVal = Math.max(...data.map(d => d.total));
-  const chartW = W - PAD_LEFT - PAD_RIGHT;
-  const chartH = H - PAD_TOP - PAD_BOTTOM;
+  const [rangeFrom, setRangeFrom] = useState(null);
+  const [rangeTo,   setRangeTo]   = useState(null);
+  const [tooltip,   setTooltip]   = useState(null);
+  const svgRef = useRef();
 
-  const pts = data.map((d, i) => {
-    const x = PAD_LEFT + (i / (data.length - 1)) * chartW;
-    const y = PAD_TOP + chartH - ((d.total / maxVal) * chartH);
-    return { x, y, ...d };
-  });
+  const allYears = (data || []).map(d => d.year).filter(Boolean);
+  const minYear  = allYears[0] || 1957;
+  const maxYear  = allYears[allYears.length - 1] || 2023;
 
-  const pathD = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
-  const areaD = `${pathD} L${pts[pts.length-1].x},${PAD_TOP + chartH} L${pts[0].x},${PAD_TOP + chartH} Z`;
+  useEffect(() => {
+    if (allYears.length) { setRangeFrom(allYears[0]); setRangeTo(allYears[allYears.length - 1]); }
+  }, [allYears.length]);
 
-  // Y-axis tick values
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(t => ({
-    val: Math.round(maxVal * t),
-    y: PAD_TOP + chartH - t * chartH
-  }));
+  if (!data || data.length === 0) return (
+    <div style={{ height:200, display:"flex", alignItems:"center", justifyContent:"center", color:"var(--text3)", fontSize:13 }}>
+      Loading chart...
+    </div>
+  );
+
+  const from = rangeFrom || minYear;
+  const to   = rangeTo   || maxYear;
+  const filtered = data.filter(d => d.year >= from && d.year <= to);
+
+  if (filtered.length < 2) return (
+    <div style={{ height:200, display:"flex", alignItems:"center", justifyContent:"center", color:"var(--text3)", fontSize:13 }}>
+      Select a wider year range
+    </div>
+  );
+
+  const W=580, H=180, PL=46, PR=16, PT=10, PB=28;
+  const cW=W-PL-PR, cH=H-PT-PB;
+  const maxVal = Math.max(...filtered.map(d => d.total||0), 1);
+  const toX = i => PL + (i/(filtered.length-1))*cW;
+  const toY = v => PT + cH - ((v||0)/maxVal)*cH;
+  const pts = filtered.map((d,i) => ({...d, x:toX(i), y:toY(d.total)}));
+  const pathD    = pts.map((p,i)=>`${i===0?"M":"L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const areaD    = `${pathD} L${pts[pts.length-1].x},${PT+cH} L${pts[0].x},${PT+cH} Z`;
+  const successD = filtered.map((d,i)=>`${i===0?"M":"L"}${toX(i).toFixed(1)},${toY(d.successes||0).toFixed(1)}`).join(" ");
+  const yTicks   = [0,0.25,0.5,0.75,1].map(t=>({val:Math.round(maxVal*t), y:PT+cH-t*cH}));
+  const xStep    = Math.max(1, Math.ceil(filtered.length/8));
+  const xLabels  = pts.filter((_,i)=>i%xStep===0||i===pts.length-1);
+
+  const handleMouseMove = e => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const mx = (e.clientX-rect.left)*(W/rect.width)-PL;
+    const idx = Math.max(0, Math.min(filtered.length-1, Math.round((mx/cW)*(filtered.length-1))));
+    setTooltip({...filtered[idx], x:pts[idx].x, y:pts[idx].y});
+  };
+
+  const PRESETS = [
+    { label:"All",      from:minYear, to:maxYear },
+    { label:"Cold War", from:1957,    to:1991   },
+    { label:"2000s",    from:2000,    to:2009   },
+    { label:"2010s",    from:2010,    to:2019   },
+  ];
+
+  const selectStyle = {
+    padding:"5px 10px", fontSize:12, borderRadius:8,
+    border:"1px solid var(--border)", background:"var(--bg)",
+    color:"var(--text)", cursor:"pointer", fontFamily:"var(--sans)",
+    appearance:"none", WebkitAppearance:"none",
+    backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%2394a3b8' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E")`,
+    backgroundRepeat:"no-repeat", backgroundPosition:"right 8px center",
+    paddingRight:28, minWidth:80
+  };
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%" }}>
-      <defs>
-        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#0284c7" stopOpacity="0.15" />
-          <stop offset="100%" stopColor="#0284c7" stopOpacity="0" />
-        </linearGradient>
-      </defs>
+    <div>
+      {/* Controls Row */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginBottom:14, flexWrap:"wrap" }}>
 
-      {/* Y-axis grid lines + labels */}
-      {yTicks.map((t, i) => (
-        <g key={i}>
-          <line x1={PAD_LEFT} y1={t.y} x2={W - PAD_RIGHT} y2={t.y}
-            stroke="rgba(0,0,0,0.06)" strokeWidth="1" />
-          <text x={PAD_LEFT - 6} y={t.y} textAnchor="end" dominantBaseline="middle"
-            fill="#94a3b8" fontSize="9" fontFamily="'Space Mono'">{t.val}</text>
-        </g>
-      ))}
+        {/* Year range — side by side compact */}
+        <div style={{
+          display:"flex", alignItems:"center", gap:6,
+          background:"var(--bg)",
+          borderRadius:10, padding:"4px 10px"
+        }}>
+          <span style={{ fontSize:11, color:"var(--text3)", fontWeight:600, whiteSpace:"nowrap" }}>From</span>
+          <select value={from} onChange={e=>setRangeFrom(Number(e.target.value))} style={selectStyle}>
+            {allYears.filter(y=>y<=to).map(y=><option key={y} value={y}>{y}</option>)}
+          </select>
+          <span style={{ fontSize:11, color:"var(--text3)", padding:"0 2px" }}></span>
+          <span style={{ fontSize:11, color:"var(--text3)", fontWeight:600, whiteSpace:"nowrap" }}>To</span>
+          <select value={to} onChange={e=>setRangeTo(Number(e.target.value))} style={selectStyle}>
+            {allYears.filter(y=>y>=from).map(y=><option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
 
-      {/* Y-axis line */}
-      <line x1={PAD_LEFT} y1={PAD_TOP} x2={PAD_LEFT} y2={PAD_TOP + chartH}
-        stroke="#e2e8f0" strokeWidth="1" />
+        {/* Preset pills */}
+        <div style={{ display:"flex", gap:4 }}>
+          {PRESETS.map(p => {
+            const pF=Math.max(p.from,minYear), pT=Math.min(p.to,maxYear);
+            const active=from===pF&&to===pT;
+            return (
+              <button key={p.label} onClick={()=>{setRangeFrom(pF);setRangeTo(pT);}}
+                style={{
+                  padding:"5px 11px", fontSize:11, borderRadius:20, cursor:"pointer",
+                  border:`1px solid ${active?"var(--accent)":"var(--border)"}`,
+                  background: active?"var(--accent)":"transparent",
+                  color: active?"#fff":"var(--text2)",
+                  fontWeight: active?600:400,
+                  transition:"all 0.15s", whiteSpace:"nowrap"
+                }}>
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
 
-      {/* X-axis line */}
-      <line x1={PAD_LEFT} y1={PAD_TOP + chartH} x2={W - PAD_RIGHT} y2={PAD_TOP + chartH}
-        stroke="#e2e8f0" strokeWidth="1" />
+        
+      
+      </div>
 
-      {/* Area fill */}
-      <path d={areaD} fill="url(#areaGrad)" />
+      {/* SVG */}
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} style={{ width:"100%", height:H }}
+        onMouseMove={handleMouseMove} onMouseLeave={()=>setTooltip(null)}>
+        <defs>
+          <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#0284c7" stopOpacity="0.12"/>
+            <stop offset="100%" stopColor="#0284c7" stopOpacity="0"/>
+          </linearGradient>
+        </defs>
+        {yTicks.map((t,i)=>(
+          <g key={i}>
+            <line x1={PL} y1={t.y} x2={W-PR} y2={t.y} stroke="rgba(0,0,0,0.05)" strokeWidth="1"/>
+            <text x={PL-5} y={t.y} textAnchor="end" dominantBaseline="middle" fill="#cbd5e1" fontSize="8.5" fontFamily="'Space Mono'">{t.val}</text>
+          </g>
+        ))}
+        <line x1={PL} y1={PT}    x2={PL}   y2={PT+cH} stroke="#e2e8f0" strokeWidth="1"/>
+        <line x1={PL} y1={PT+cH} x2={W-PR} y2={PT+cH} stroke="#e2e8f0" strokeWidth="1"/>
+        <path d={areaD}    fill="url(#ag)"/>
+        <path d={successD} fill="none" stroke="#10b981" strokeWidth="1.5" strokeDasharray="4 2" opacity="0.75"/>
+        <path d={pathD}    fill="none" stroke="#0284c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        {xLabels.map((p,i)=>(
+          <text key={i} x={p.x} y={PT+cH+14} textAnchor="middle" fill="#cbd5e1" fontSize="8.5" fontFamily="'Space Mono'">{p.year}</text>
+        ))}
+        {tooltip&&(
+          <g>
+            <line x1={tooltip.x} y1={PT} x2={tooltip.x} y2={PT+cH} stroke="#0284c7" strokeWidth="1" strokeDasharray="3 2" opacity="0.35"/>
+            <circle cx={tooltip.x} cy={tooltip.y} r="4" fill="#0284c7" stroke="#fff" strokeWidth="2"/>
+            <rect x={Math.min(tooltip.x+10,W-116)} y={tooltip.y-44} width="108" height="58" rx="8"
+              fill="white" stroke="#e2e8f0" strokeWidth="1" style={{filter:"drop-shadow(0 4px 12px rgba(0,0,0,0.12))"}}/>
+            <text x={Math.min(tooltip.x+64,W-62)} y={tooltip.y-29} textAnchor="middle" fill="#0f172a" fontSize="12" fontWeight="700" fontFamily="'Space Mono'">{tooltip.year}</text>
+            <text x={Math.min(tooltip.x+64,W-62)} y={tooltip.y-13} textAnchor="middle" fill="#0284c7" fontSize="10" fontFamily="'Space Mono'">{(tooltip.total||0).toLocaleString()} total</text>
+            <text x={Math.min(tooltip.x+64,W-62)} y={tooltip.y+3}  textAnchor="middle" fill="#10b981" fontSize="10" fontFamily="'Space Mono'">{(tooltip.successes||0).toLocaleString()} success</text>
+          </g>
+        )}
+      </svg>
 
-      {/* Success line */}
-      <path d={pts.map((p, i) => {
-        const y = PAD_TOP + chartH - ((p.successes / maxVal) * chartH);
-        return `${i === 0 ? "M" : "L"}${p.x},${y}`;
-      }).join(" ")} fill="none" stroke="#10b981" strokeWidth="1.5" strokeDasharray="4 2" opacity="0.8" />
-
-      {/* Total line */}
-      <path d={pathD} fill="none" stroke="#0284c7" strokeWidth="2"
-        strokeLinecap="round" strokeLinejoin="round" />
-
-      {/* X-axis labels */}
-      {pts.filter((_, i) => i % Math.ceil(pts.length / 10) === 0).map((p, i) => (
-        <g key={i}>
-          <circle cx={p.x} cy={p.y} r="2.5" fill="#0284c7" />
-          <text x={p.x} y={PAD_TOP + chartH + 14} textAnchor="middle"
-            fill="#94a3b8" fontSize="9" fontFamily="'Space Mono'">{p.year}</text>
-        </g>
-      ))}
-
-      {/* Y-axis label */}
-      <text x={10} y={H / 2} textAnchor="middle" dominantBaseline="middle"
-        fill="#94a3b8" fontSize="9" fontFamily="'Space Mono'"
-        transform={`rotate(-90, 10, ${H / 2})`}>Launches</text>
-    </svg>
+      {/* Legend */}
+      <div style={{ display:"flex", gap:16, marginTop:8 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"var(--text2)" }}>
+          <div style={{ width:18, height:2, background:"#0284c7", borderRadius:1 }}/> Total launches
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"var(--text2)" }}>
+          <div style={{ width:18, borderTop:"2px dashed #10b981" }}/> Successes
+        </div>
+      </div>
+    </div>
   );
 }
 
 function DonutChart({ data, colors }) {
-  const SIZE=130, R=48, CX=65, CY=65;
-  const total = data.reduce((s,d) => s + d.count, 0);
-  let angle = -Math.PI/2;
-  const slices = data.map((d,i) => {
-    const frac = d.count/total;
-    const sa = angle;
-    angle += frac*2*Math.PI;
-    const x1=CX+R*Math.cos(sa), y1=CY+R*Math.sin(sa);
-    const x2=CX+R*Math.cos(angle), y2=CY+R*Math.sin(angle);
-    return {
-      path:`M${CX},${CY} L${x1},${y1} A${R},${R} 0 ${frac>0.5?1:0} 1 ${x2},${y2} Z`,
-      color:colors[i%colors.length], ...d
-    };
+  if (!data||!data.length) return null;
+  const SIZE=120, R=45, CX=60, CY=60;
+  const total=data.reduce((s,d)=>s+(d.count||0),0);
+  if (!total) return null;
+  let angle=-Math.PI/2;
+  const slices=data.map((d,i)=>{
+    const frac=(d.count||0)/total, sa=angle;
+    angle+=frac*2*Math.PI;
+    const x1=CX+R*Math.cos(sa),y1=CY+R*Math.sin(sa);
+    const x2=CX+R*Math.cos(angle),y2=CY+R*Math.sin(angle);
+    return {path:`M${CX},${CY} L${x1},${y1} A${R},${R} 0 ${frac>0.5?1:0} 1 ${x2},${y2} Z`,color:colors[i%colors.length],...d};
   });
   return (
     <div className="donut-wrap">
       <svg viewBox={`0 0 ${SIZE} ${SIZE}`} style={{width:120,height:120,flexShrink:0}}>
-        <circle cx={CX} cy={CY} r={R-16} fill="white" stroke="#e2e8f0" strokeWidth="1"/>
-        {slices.map((s,i) => <path key={i} d={s.path} fill={s.color}/>)}
+        <circle cx={CX} cy={CY} r={R-14} fill="var(--bg)"/>
+        {slices.map((s,i)=><path key={i} d={s.path} fill={s.color} opacity="0.85"/>)}
         <text x={CX} y={CY} textAnchor="middle" dominantBaseline="central"
-          fill="#0f172a" fontSize="15" fontWeight="700" fontFamily="'Space Mono'">
-          {total.toLocaleString()}
-        </text>
+          fill="var(--text)" fontSize="16" fontWeight="700" fontFamily="'Space Mono'">{total.toLocaleString()}</text>
       </svg>
       <div className="donut-legend">
-        {slices.map((s,i) => (
+        {slices.map((s,i)=>(
           <div key={i} className="legend-item">
             <div className="legend-dot" style={{background:s.color}}/>
-            <span style={{flex:1}}>{s.orbit_class||s.status}</span>
-            <span style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--text3)"}}>
-              {s.count.toLocaleString()}
-            </span>
+            <span>{s.orbit_class||s.status}</span>
+            <span style={{marginLeft:"auto",fontFamily:"var(--mono)",fontSize:11,color:"var(--text3)"}}>{(s.count||0).toLocaleString()}</span>
           </div>
         ))}
       </div>
@@ -132,61 +211,46 @@ export default function Dashboard() {
   const [byPurpose, setByPurpose] = useState([]);
 
   useEffect(() => {
-    getOverview().then(r => setOverview(r.data));
-    getLaunchesByYear().then(r => setByYear(r.data));
-    getSatellitesByOrbit().then(r => setByOrbit(r.data));
-    getTopCompanies().then(r => setTopCos(r.data));
-    getLaunchesByStatus().then(r => setByStatus(r.data));
-    getSatsByPurpose().then(r => setByPurpose(r.data));
+    getOverview().then(r=>setOverview(r.data)).catch(()=>{});
+    getLaunchesByYear().then(r=>setByYear(r.data||[])).catch(()=>{});
+    getSatellitesByOrbit().then(r=>setByOrbit(r.data||[])).catch(()=>{});
+    getTopCompanies().then(r=>setTopCos(r.data||[])).catch(()=>{});
+    getLaunchesByStatus().then(r=>setByStatus(r.data||[])).catch(()=>{});
+    getSatsByPurpose().then(r=>setByPurpose(r.data||[])).catch(()=>{});
   }, []);
 
-  const ORBIT_COLORS  = ["#0ea5e9","#7c3aed","#f59e0b","#10b981","#ec4899"];
+  const ORBIT_COLORS  = ["#0284c7","#7c3aed","#f59e0b","#10b981","#ec4899"];
   const STATUS_COLORS = ["#10b981","#ef4444","#f59e0b","#94a3b8"];
-  const maxL = Math.max(...topCos.map(c => c.launches), 1);
-  const maxP = Math.max(...byPurpose.map(p => p.count), 1);
-
-  const stats = [
-    {label:"Total Launches",   value:overview?.total_launches?.toLocaleString(),   sub:"all time",         color:"#0ea5e9"},
-    {label:"Satellites",       value:overview?.total_satellites?.toLocaleString(),  sub:"in database",      color:"#7c3aed"},
-    {label:"Companies",        value:overview?.total_companies?.toLocaleString(),   sub:"launch providers", color:"#f59e0b"},
-    {label:"Countries",        value:overview?.total_countries?.toLocaleString(),   sub:"represented",      color:"#10b981"},
-    {label:"Success Rate",     value:overview?.success_rate?`${overview.success_rate}%`:"—", sub:"mission success", color:"#ec4899"},
-  ];
+  const maxLaunches   = Math.max(...(topCos.map(c=>c.launches||0)),1);
+  const maxPurpose    = Math.max(...(byPurpose.map(p=>p.count||0)),1);
 
   return (
     <div>
       <div className="stats-grid">
-        {stats.map((s,i) => (
+        {[
+          {label:"Total Launches",value:overview?.total_launches?.toLocaleString(),  sub:"all time",         color:"#0284c7"},
+          {label:"Satellites",    value:overview?.total_satellites?.toLocaleString(), sub:"in database",      color:"#7c3aed"},
+          {label:"Companies",     value:overview?.total_companies?.toLocaleString(),  sub:"launch providers", color:"#d97706"},
+          {label:"Countries",     value:overview?.total_countries?.toLocaleString(),  sub:"represented",      color:"#10b981"},
+          {label:"Success Rate",  value:overview?.success_rate?`${overview.success_rate}%`:"—",sub:"mission success",color:"#ec4899"},
+        ].map((s,i)=>(
           <div key={i} className="stat-card" style={{"--accent-c":s.color}}>
             <div className="stat-label">{s.label}</div>
-            <div className="stat-value">{s.value ?? "—"}</div>
+            <div className="stat-value">{s.value??"—"}</div>
             <div className="stat-sub">{s.sub}</div>
           </div>
         ))}
       </div>
 
-      <div className="charts-grid">
+      <div className="charts-grid" style={{marginBottom:20}}>
         <div className="card">
           <div className="card-title">Launches Per Year</div>
-          <div style={{height:180}}><LineChart data={byYear}/></div>
-          <div style={{display:"flex",gap:20,marginTop:12}}>
-            {[
-              {color:"#0ea5e9",dash:false,label:"Total launches"},
-              {color:"#10b981",dash:true, label:"Successes"},
-            ].map((l,i) => (
-              <div key={i} style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:"var(--text2)"}}>
-                <svg width="22" height="10">
-                  <line x1="0" y1="5" x2="22" y2="5" stroke={l.color} strokeWidth="2.5"
-                    strokeDasharray={l.dash?"5 3":"none"} strokeLinecap="round"/>
-                </svg>
-                {l.label}
-              </div>
-            ))}
-          </div>
+          <LineChart data={byYear}/>
         </div>
         <div className="card">
           <div className="card-title">Satellites by Orbit</div>
-          {byOrbit.length>0 && <DonutChart data={byOrbit} colors={ORBIT_COLORS}/>}
+          {byOrbit.length>0?<DonutChart data={byOrbit} colors={ORBIT_COLORS}/>:
+            <div style={{color:"var(--text3)",fontSize:13}}>Loading...</div>}
         </div>
       </div>
 
@@ -194,37 +258,30 @@ export default function Dashboard() {
         <div className="card">
           <div className="card-title">Top Launch Companies</div>
           <div className="bar-chart">
-            {topCos.map((c,i) => (
+            {topCos.map((c,i)=>(
               <div key={i} className="bar-row">
                 <div className="bar-label" title={c.name}>{c.name}</div>
                 <div className="bar-track">
-                  <div className="bar-fill" style={{
-                    width:`${(c.launches/maxL)*100}%`,
-                    background:`linear-gradient(90deg,#0ea5e9,#7c3aed)`
-                  }}/>
+                  <div className="bar-fill" style={{width:`${((c.launches||0)/maxLaunches)*100}%`,background:"linear-gradient(90deg,#0284c7,#7c3aed)"}}/>
                 </div>
                 <div className="bar-count">{c.launches}</div>
               </div>
             ))}
           </div>
         </div>
-
         <div className="card">
           <div className="card-title">Mission Status</div>
-          {byStatus.length>0 && <DonutChart data={byStatus} colors={STATUS_COLORS}/>}
+          {byStatus.length>0?<DonutChart data={byStatus} colors={STATUS_COLORS}/>:
+            <div style={{color:"var(--text3)",fontSize:13}}>Loading...</div>}
         </div>
-
         <div className="card">
           <div className="card-title">Top Satellite Purposes</div>
           <div className="bar-chart">
-            {byPurpose.map((p,i) => (
+            {byPurpose.map((p,i)=>(
               <div key={i} className="bar-row">
                 <div className="bar-label" title={p.purpose}>{p.purpose}</div>
                 <div className="bar-track">
-                  <div className="bar-fill" style={{
-                    width:`${(p.count/maxP)*100}%`,
-                    background:`linear-gradient(90deg,#7c3aed,#ec4899)`
-                  }}/>
+                  <div className="bar-fill" style={{width:`${((p.count||0)/maxPurpose)*100}%`,background:"linear-gradient(90deg,#7c3aed,#ec4899)"}}/>
                 </div>
                 <div className="bar-count">{p.count}</div>
               </div>
