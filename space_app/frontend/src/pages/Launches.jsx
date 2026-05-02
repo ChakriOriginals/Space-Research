@@ -9,7 +9,7 @@ function statusBadge(s) {
   return <span className={`badge badge-${map[s] || "unknown"}`}>{s || "Unknown"}</span>;
 }
 
-// ── Filter Panel ──────────────────────────────────────────────
+//   Filter Panel                        
 function FilterPanel({ filters, setFilters, companies, rockets, sites, onReset }) {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 1957 + 1 }, (_, i) => 1957 + i).reverse();
@@ -114,7 +114,7 @@ function FilterPanel({ filters, setFilters, companies, rockets, sites, onReset }
   );
 }
 
-// ── Active Filter Tags ────────────────────────────────────────
+//   Active Filter Tags                     
 function FilterTags({ filters, companies, rockets, sites, onRemove }) {
   const labels = {
     yearFrom: v => `From ${v}`,
@@ -146,7 +146,7 @@ function FilterTags({ filters, companies, rockets, sites, onRemove }) {
   );
 }
 
-// ── Create/Edit Modal ─────────────────────────────────────────
+//   Create/Edit Modal                     ─
 function Modal({ mode, data, onClose, onSave, toast }) {
   const [form, setForm]       = useState(data || {});
   const [companies, setComp]  = useState([]);
@@ -235,7 +235,7 @@ function Modal({ mode, data, onClose, onSave, toast }) {
   );
 }
 
-// ── Detail Modal ──────────────────────────────────────────────
+//   Detail Modal                        
 function DetailModal({ id, onClose }) {
   const [data, setData] = useState(null);
   useEffect(() => { getLaunch(id).then(r => setData(r.data)); }, [id]);
@@ -276,7 +276,7 @@ function DetailModal({ id, onClose }) {
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────
+//   Main Page                         ─
 const DEFAULT_FILTERS = {
   yearFrom: "", yearTo: "", company: "", status: "",
   rocket: "", site: "", sortBy: "launch_date", dateOrder: "desc"

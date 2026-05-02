@@ -26,7 +26,7 @@ def execute(sql, params=None):
     cursor.close(); conn.close()
     return last_id
 
-# ── ANALYTICS ─────────────────────────────────────────────────
+#   ANALYTICS                         ─
 
 @app.route("/api/stats/overview")
 def overview():
@@ -76,7 +76,7 @@ def satellites_by_purpose():
         FROM satellites s JOIN mission_purposes mp ON s.purpose_id=mp.id
         GROUP BY mp.purpose ORDER BY count DESC LIMIT 10"""))
 
-# ── LAUNCHES CRUD ─────────────────────────────────────────────
+#   LAUNCHES CRUD                       ─
 
 @app.route("/api/launches")
 def get_launches():
@@ -180,7 +180,7 @@ def delete_launch(lid):
     execute("DELETE FROM launches WHERE id=%s", (lid,))
     return jsonify({"message": "Launch deleted"})
 
-# ── SATELLITES CRUD (with full filtering) ─────────────────────
+#   SATELLITES CRUD (with full filtering)           ─
 
 @app.route("/api/satellites")
 def get_satellites():
@@ -327,7 +327,7 @@ def delete_satellite(sid):
     execute("DELETE FROM satellites WHERE id=%s", (sid,))
     return jsonify({"message": "Satellite deleted"})
 
-# ── LOOKUPS ───────────────────────────────────────────────────
+#   LOOKUPS                          ─
 
 @app.route("/api/lookup/companies")
 def lookup_companies():
