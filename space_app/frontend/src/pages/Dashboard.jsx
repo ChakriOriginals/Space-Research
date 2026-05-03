@@ -3,7 +3,7 @@ import {
   getOverview, getLaunchesByYear, getSatellitesByOrbit,
   getTopCompanies, getLaunchesByStatus, getSatsByPurpose
 } from "../api";
- 
+
 function LineChart({ data }) {
   const [rangeFrom, setRangeFrom] = useState(null);
   const [rangeTo,   setRangeTo]   = useState(null);
