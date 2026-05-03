@@ -1,22 +1,22 @@
-# ⬡ Space Research Dashboard
+#  Space Research Dashboard
 
 A full-stack web application for exploring, managing, and visualizing space launch and satellite data. Built with a Flask REST API backend and a React frontend.
 
 ---
 
-## 🚀 Features
+## Features
 
-- **Dashboard** — Overview stats, interactive launches-per-year line chart, donut charts for orbit types and mission status, and bar charts for top companies and satellite purposes
-- **Launches** — Browse, search, filter, sort, and paginate all launch records with full CRUD support
-- **Satellites** — Browse, search, filter, sort, and paginate all satellite records with full CRUD support
-- **Advanced Filtering** — Filter by year range, company, status, rocket, launch site, orbit, purpose, operator, country, mass range, and lifetime range
-- **Active Filter Tags** — Visual tags showing active filters with one-click removal
-- **Toast Notifications** — Real-time success/error feedback on all operations
-- **Responsive Design** — Adapts to different screen sizes
+- **Dashboard** - Overview stats, interactive launches-per-year line chart, donut charts for orbit types and mission status, and bar charts for top companies and satellite purposes
+- **Launches** - Browse, search, filter, sort, and paginate all launch records with full CRUD support
+- **Satellites** - Browse, search, filter, sort, and paginate all satellite records with full CRUD support
+- **Advanced Filtering** - Filter by year range, company, status, rocket, launch site, orbit, purpose, operator, country, mass range, and lifetime range
+- **Active Filter Tags** - Visual tags showing active filters with one-click removal
+- **Toast Notifications** - Real-time success/error feedback on all operations
+- **Responsive Design** - Adapts to different screen sizes
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 | Layer     | Technology                        |
 |-----------|-----------------------------------|
@@ -27,7 +27,7 @@ A full-stack web application for exploring, managing, and visualizing space laun
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 Space-Research/
@@ -55,7 +55,7 @@ Space-Research/
 
 ---
 
-## ⚙️ Setup & Installation
+##  Setup & Installation
 
 ### Prerequisites
 
@@ -139,7 +139,7 @@ The frontend will start at `http://localhost:5173`
 
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### Analytics
 
@@ -230,7 +230,7 @@ The frontend will start at `http://localhost:5173`
 
 ---
 
-## 🤝 Contributing
+##  Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/your-feature`)
@@ -239,7 +239,5 @@ The frontend will start at `http://localhost:5173`
 5. Open a Pull Request
 
 ---
-
-## 📄 License
 
 This project is open source. Feel free to use and modify it.
