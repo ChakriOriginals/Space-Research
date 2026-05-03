@@ -5,7 +5,7 @@ from config import DB_CONFIG
 
 app = Flask(__name__)
 CORS(app)
-
+ 
 def get_db():
     return mysql.connector.connect(**DB_CONFIG)
 
