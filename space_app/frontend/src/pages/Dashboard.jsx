@@ -13,7 +13,7 @@ function LineChart({ data }) {
   const allYears = (data || []).map(d => d.year).filter(Boolean);
   const minYear  = allYears[0] || 1957;
   const maxYear  = allYears[allYears.length - 1] || 2023;
-
+ 
   useEffect(() => {
     if (allYears.length) { setRangeFrom(allYears[0]); setRangeTo(allYears[allYears.length - 1]); }
   }, [allYears.length]);
